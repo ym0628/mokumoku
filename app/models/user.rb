@@ -13,6 +13,12 @@ class User < ApplicationRecord
   has_many :user_notification_timings, dependent: :destroy
   has_many :notification_timings, through: :user_notification_timings
   has_one_attached :avatar
+  # Followed/followed relationship.
+  has_many :relationships, class_name: "Relationship", foreign_key: "follower_id", dependent: :destroy
+  has_many :reverse_of_relationships, class_name: "Relationship", foreign_key: "followed_id", dependent: :destroy
+  # It will be used on the list screen of the users you follow in the future.
+  has_many :followings, through: :relationships, source: :followed
+  has_many :followers, through: :reverse_of_relationships, source: :follower
 
   validates :password, length: { minimum: 3 }, if: -> { new_record? || changes[:crypted_password] }
   validates :password, confirmation: true, if: -> { new_record? || changes[:crypted_password] }
@@ -75,5 +81,18 @@ class User < ApplicationRecord
 
   def allow_liked_event_notification?
     notification_timings.liked_event.present?
+  end
+
+  # Processing when following
+  def follow(user_id)
+    relationships.create(followed_id: user_id)
+  end
+  # Processing when unfollowing
+  def unfollow(user_id)
+    relationships.find_by(followed_id: user_id).destroy
+  end
+  # Determining if you are following other users
+  def following?(user)
+    followings.include?(user)
   end
 end
